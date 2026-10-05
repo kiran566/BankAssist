@@ -1,80 +1,91 @@
-# 🏦 Banking AI Assistant – Domain-Specific LLM Fine-Tuning
+# Banking AI Assistant — LLM Fine-Tuning using QLoRA
+
+A domain-specific banking AI assistant built by fine-tuning **Qwen2.5-3B-Instruct** with **QLoRA** on banking query-response data and evaluating the generated responses using **LangSmith**.
 
 ## Overview
 
-Banking AI Assistant is a domain-specific conversational chatbot built by fine-tuning **Qwen2.5-3B-Instruct** using **QLoRA (4-bit Quantization + LoRA)**. The assistant is designed to answer banking-related queries such as account opening, KYC, NEFT, RTGS, loans, debit cards, internet banking, and other customer support questions.
+The project focuses on adapting a general-purpose instruction-tuned LLM for banking-related conversations while keeping GPU memory usage low through 4-bit quantization and LoRA adapters.
 
-Instead of training a Large Language Model (LLM) from scratch, this project applies **Parameter-Efficient Fine-Tuning (PEFT)** to adapt a pretrained model using a custom banking question–answer dataset.
-
----
+The fine-tuned model is evaluated on a separate set of banking questions using **LangSmith** and an **LLM-as-a-Judge** approach.
 
 ## Features
 
-* Domain-specific Banking AI Assistant
-* QLoRA-based parameter-efficient fine-tuning
-* 4-bit model quantization for memory-efficient training
-* Banking conversational dataset in chat format
-* Supports banking queries such as:
+* Fine-tuned **Qwen2.5-3B-Instruct** on custom banking query-response data.
+* Used the **Qwen chat template** to format conversational training examples.
+* Applied **QLoRA with 4-bit NF4 quantization** to reduce GPU memory usage.
+* Used **LoRA adapters** so that only a small portion of the model parameters are trained.
+* Built the training pipeline using **Transformers, TRL SFTTrainer, PEFT, BitsAndBytes, and PyTorch**.
+* Saved the trained **LoRA adapter and tokenizer** for later inference.
+* Created a separate evaluation dataset containing banking questions and expected answers.
+* Used **LangSmith** to run and track model evaluations.
+* Used a **Groq-hosted LLM as an evaluator** to judge the correctness of generated responses.
 
-  * Savings & Current Accounts
-  * KYC
-  * NEFT
-  * RTGS
-  * IMPS
-  * Loans
-  * Debit/Credit Cards
-  * Internet & Mobile Banking
-* Interactive chatbot inference
-
----
-
-## Tech Stack
-
-* Python
-* PyTorch
-* Hugging Face Transformers
-* TRL (SFTTrainer)
-* PEFT
-* BitsAndBytes
-* QLoRA
-* Qwen2.5-3B-Instruct
-
----
-
-## Project Architecture
+## Project Flow
 
 ```text
 Banking Dataset
-        │
-        ▼
-Data Preprocessing
-(Query → Messages Format)
-        │
-        ▼
-Qwen Chat Template
-        │
-        ▼
-Tokenizer
-        │
-        ▼
+      ↓
+Chat Template Formatting
+      ↓
+Qwen2.5-3B-Instruct
+      ↓
+4-bit Quantization + LoRA
+      ↓
 QLoRA Fine-Tuning
-(PEFT + TRL + Transformers)
-        │
-        ▼
+      ↓
 LoRA Adapter
-        │
-        ▼
-Inference Pipeline
-        │
-        ▼
+      ↓
 Banking AI Assistant
+      ↓
+Evaluation Dataset
+      ↓
+LangSmith
+      ↓
+LLM-as-a-Judge
+      ↓
+Evaluation Score
 ```
 
----
+## Fine-Tuning
 
-## Dataset Format
+The model was fine-tuned using **QLoRA**, which combines:
 
-The dataset follows the conversational format expected by Qwen.
+* 4-bit quantization of the base model
+* Frozen base model weights
+* Trainable LoRA adapters
+
+Instead of updating all parameters of the 3B parameter model, LoRA trains a much smaller set of additional parameters.
+
+### Training Stack
+
+* Python
+* Qwen2.5-3B-Instruct
+* Hugging Face Transformers
+* PEFT
+* QLoRA
+* LoRA
+* BitsAndBytes
+* TRL
+* SFTTrainer
+* PyTorch
+* CUDA
+* Google Colab
+
+## Dataset
+
+The training data contains banking-related conversational examples covering topics such as:
+
+* Savings accounts
+* KYC
+* NEFT
+* RTGS
+* Loans
+* Digital banking
+* Account-related queries
+
+The conversations are formatted using the Qwen chat template before supervised fine-tuning.
+
+Example:
 
 ```json
 {
@@ -85,105 +96,75 @@ The dataset follows the conversational format expected by Qwen.
     },
     {
       "role": "assistant",
-      "content": "Banks generally require identity proof, address proof, PAN or Form 60, and passport-size photographs."
+      "content": "Banks generally require identity proof, address proof, PAN or Form 60, and other documents may be required depending on the bank."
     }
   ]
 }
 ```
 
----
+## Evaluation with LangSmith
 
-## Model
+After fine-tuning, the model is loaded with the saved LoRA adapter and evaluated separately from the training process.
 
-* Base Model: **Qwen2.5-3B-Instruct**
-* Fine-Tuning Method: **QLoRA**
-* Quantization: **4-bit (NF4)**
-* Framework: **Hugging Face Transformers**
-* Trainer: **TRL SFTTrainer**
-
----
-
-## Fine-Tuning Pipeline
-
-1. Prepare banking question–answer dataset.
-2. Convert data into Qwen chat message format.
-3. Load Qwen2.5-3B-Instruct in 4-bit precision.
-4. Prepare the model for k-bit training.
-5. Apply LoRA adapters using PEFT.
-6. Fine-tune with TRL SFTTrainer.
-7. Save LoRA adapters.
-8. Load the model for inference.
-
----
-
-## Example
-
-**User**
-
-```
-What is NEFT?
-```
-
-**Assistant**
-
-```
-NEFT (National Electronic Funds Transfer) is an electronic payment system that enables secure fund transfers between bank accounts across India.
-```
-
----
-
-## Project Structure
+The evaluation flow is:
 
 ```text
-banking-ai-assistant/
-│
-├── dataset/
-│   └── banking_dataset.json
-│
-├── notebooks/
-│   ├── data_preprocessing.ipynb
-│   ├── qlora_training.ipynb
-│   └── inference.ipynb
-│
-├── banking-chatbot-lora/
-│   ├── adapter_model.safetensors
-│   ├── adapter_config.json
-│   └── tokenizer files
-│
-├── app.py
-├── requirements.txt
-└── README.md
+Test Question
+     ↓
+Qwen2.5-3B + LoRA
+     ↓
+Generated Answer
+     ↓
+Compare with Expected Answer
+     ↓
+Groq LLM Judge
+     ↓
+Correctness Score
+     ↓
+LangSmith Experiment
 ```
 
----
+LangSmith stores the evaluation runs so that the generated answer, expected answer, evaluator result, and score can be inspected.
 
-## Future Improvements
+### LLM-as-a-Judge
 
-* Integrate Retrieval-Augmented Generation (RAG) with official banking documents.
-* Add multilingual support for regional languages.
-* Develop a FastAPI backend with a React or Streamlit frontend.
-* Evaluate the model using response accuracy and hallucination metrics.
-* Deploy the chatbot on a cloud platform for public access.
+A separate LLM is used as an evaluator rather than manually checking every generated response.
 
----
+For example:
 
-## Skills Demonstrated
+```text
+Question:
+What is NEFT?
 
-* Large Language Models (LLMs)
-* Domain-Specific Fine-Tuning
-* QLoRA
-* LoRA
-* Parameter-Efficient Fine-Tuning (PEFT)
-* Hugging Face Transformers
-* TRL SFTTrainer
-* PyTorch
-* Model Quantization
-* Conversational AI
-* Prompt Formatting
-* Inference Pipeline
+Expected Answer:
+NEFT is a banking payment system used to electronically
+transfer money between bank accounts.
 
----
+Model Answer:
+NEFT allows electronic transfer of funds between bank accounts.
 
-## License
+        ↓
 
-This project is intended for educational and research purposes.
+LLM Judge
+
+        ↓
+
+Correctness Score + Reason
+```
+
+The **Groq model is only used as the evaluation judge**. The actual banking assistant remains the fine-tuned **Qwen2.5-3B-Instruct + LoRA** model.
+
+## Model Saving
+
+The fine-tuning process saves the LoRA adapter and tokenizer:
+
+```python
+trainer.save_model("./banking-chatbot-lora")
+tokenizer.save_pretrained("./banking-chatbot-lora")
+```
+
+The adapter can later be loaded on top of the original Qwen2.5-3B-Instruct base model for inference.
+
+## Technologies
+
+**Python | Qwen2.5-3B-Instruct | Hugging Face Transformers | PEFT | LoRA | QLoRA | BitsAndBytes | TRL | PyTorch | CUDA | LangSmith | Groq | Google Colab**
